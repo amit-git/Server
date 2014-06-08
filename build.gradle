@@ -1,0 +1,15 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+   baseName = 'mylib'
+   version =  '0.1'
+}
+
+dependencies {
+        compile "joda-time:joda-time:2.2"
+}
