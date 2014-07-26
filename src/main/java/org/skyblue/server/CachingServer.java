@@ -90,7 +90,7 @@ public class CachingServer {
             while (true) {
                 Socket client = ss.accept();
                 executor.execute(new CacheHandler(client));
-                //new Thread(new CacheHandler(client)).start();
+                //new Thread(new CacheHandler(client)).run();
             }
         } catch(Exception e) {
             System.out.println("Exception caught " + e.getMessage());
