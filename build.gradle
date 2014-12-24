@@ -6,10 +6,12 @@ repositories {
 }
 
 jar {
-   baseName = 'mylib'
-   version =  '0.1'
+    baseName = 'mylib'
+    version = '0.1'
 }
 
 dependencies {
-        compile "joda-time:joda-time:2.2"
+    compile "joda-time:joda-time:2.2"
+    compile "org.clojure:clojure:1.5.1"
+    compile "org.clojure:core.async:0.1.338.0-5c5012-alpha"
 }
