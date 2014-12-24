@@ -2,31 +2,34 @@
   (:import [java.net ServerSocket]
            [java.io BufferedReader BufferedInputStream])
   (:require [clojure.java.io :as io :refer [reader writer]]
-        [clojure.core.async :as async :refer [go]]))
-
+            [clojure.core.async :as async :refer [go]]))
 
 ; cache server functions
-(def cache (atom {}))
+(defn add-entry [cache k v] (swap! cache assoc k v) {k v})
+(defn get-entry [cache k] (get @cache k))
 
-(defn add-entry [k v] (swap! cache assoc k v) {k v})
-(defn get-entry [k] (get @cache k))
-
-(defn handle-cache-req
-  [req]
+(defn ^:private handle-cache-req
+  [cache req]
   (let [tl (.trim req)
         fi (.indexOf tl " ") ; first space index to grab cmd (get/put)
         cmd (.substring tl 0 fi)
         cmd-args (.trim (.substring tl fi))
         entry (.split cmd-args "=")]
     (case cmd
-      "get" (get-entry (first entry))
-      "put" (add-entry (first entry) (second entry)))))
+      "get" (get-entry cache (first entry))
+      "put" (add-entry cache (first entry) (second entry)))))
 
+(defn handle-req
+  [cache req]
+  (if (and
+        (or
+          (.startsWith req "get")
+          (.startsWith req "put"))
+        (.contains req " "))
+    (handle-cache-req cache req)
+    ""))
 
 ; client socket handling functions
-(def ss (atom nil))
-(def connections (atom []))
-
 (defn app-start-state []
   {:connections (atom [])
    :ss (atom nil)
@@ -46,8 +49,8 @@
   (write-msg cli-sock-writer msg)
   (write-prompt cli-sock-writer))
 
-(defn handle-cli
-  [cli-sock]
+(defn handle-cli-sock
+  [cli-sock cache]
   (let [ci (io/reader cli-sock)
         co (io/writer cli-sock)]
     (welcome-msg co)
@@ -58,33 +61,37 @@
               line (.readLine br)]
           (do
             (println "Req - " line)
-            (send-response co (str (handle-cache-req line))))))
+            (send-response co (str (handle-req cache line))))))
       (catch Exception e (pr-str "Client socket exception - " (.getMessage e))))))
 
 (defn start-server
   [port]
-  (future
-    (let [sss (ServerSocket. port)]
-      (reset! ss sss)
-      (loop []
-        (let [cs (.accept sss)]
-          (swap! connections conj cs)
-          (async/go (handle-cli cs)))
-        (recur)))))
+  (let [app-state (app-start-state)]
+    (future
+      (let [sss (ServerSocket. port)]
+        (reset! (:ss app-state) sss)
+        (loop []
+          (let [cs (.accept sss)]
+            (swap! (:connections app-state) conj cs)
+            (async/go (handle-cli-sock cs (:cache app-state))))
+          (recur))))
+    app-state))
 
-(defn stop-server []
-  (do
-    (doseq [conn @connections] (.close conn))
-    (if (not (nil? @ss)) (.close @ss))
-    (reset! ss nil)
-    (reset! connections [])))
+(defn stop-server
+  [app-state]
+  (let [{:keys [connections ss cache]} app-state]
+    (do
+      (doseq [conn @connections] (.close conn))
+      (if (not (nil? @ss)) (.close @ss))
+      (reset! ss nil)
+      (reset! cache {})
+      (reset! connections []))))
 
 (comment
-  (start-server 9000)
-  (stop-server)
-  (async/go (str "Some new funda here"))
-  (pr-str (handle-cache-req "put color=blue,red"))
-  (handle-cache-req "get name")
-  (reset! cache {})
+  ; simple in-memory caching server
+  ; sample input "put color=blue, red, black"
+  ; sample input "get color"
+  (def app (start-server 9000))
+  (stop-server app)
 
   )
