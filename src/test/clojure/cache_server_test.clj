@@ -38,6 +38,11 @@
     (let [c (handle-req cache "color")]
       (is (empty? c)))))
 
+(deftest empty-req
+  (testing "empty request command"
+    (let [c (handle-req cache "")]
+      (is (empty? c)))))
+
 (comment
   (run-tests)
   )
