@@ -94,4 +94,22 @@
   (def app (start-server 9000))
   (stop-server app)
 
+  (defmacro unless-1[cond & body]
+    `(when (not ~cond) ~@body))
+
+  (defmacro time-it [& body]
+    `(let [st# (System/currentTimeMillis)]
+        ~@body
+       (str "Time :: " (- (System/currentTimeMillis) st#) " msec.")))
+
+  (unless-1 (nil? "x") (println "starting ") (do (println "First line") (println "second line")))
+
+  (time-it
+    (println ("starting work") (Thread/sleep 2000) (println "Done"))
+    )
+
+  (do
+    (println "Adding")
+    (+ 2 3) (println "Done"))
+
   )

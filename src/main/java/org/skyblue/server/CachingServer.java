@@ -12,8 +12,19 @@ import java.util.concurrent.Executors;
 
 public class CachingServer {
     static final int port = 5555;
-
     static Map<String, String> cache = new HashMap<String, String>();
+
+    static class CacheServerContext {
+        public final Map<String, String> cache;
+        public final String commandLine;
+        public OutputStream outputStream;
+
+        public CacheServerContext(Map<String, String> cache, String commandLine, OutputStream outputStream) {
+            this.cache = cache;
+            this.commandLine = commandLine;
+            this.outputStream = outputStream;
+        }
+    }
 
     static class CacheHandler implements Runnable {
         final Socket clientSocket;
@@ -27,51 +38,21 @@ public class CachingServer {
                 final BufferedReader br = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 final OutputStream outStream = clientSocket.getOutputStream();
                 outStream.write("Ready..\n".getBytes());
-
-                boolean badCmd = false;
-
-
                 String cmd;
                 do {
                     cmd = br.readLine().replace("\n", "");
-                    if (cmd.startsWith("put")) {
-                        cmd = cmd.replace("put", "").trim();
-                        String[] keyValuePairParts = cmd.split("=");
-                        if (keyValuePairParts.length == 2) {
-                            final String key = keyValuePairParts[0].trim();
-                            ;
-                            final String value = keyValuePairParts[1].trim();
-                            ;
-                            synchronized (CachingServer.class) {
-                                cache.put(key, value);
-                            }
-                        } else {
-                            badCmd = true;
-                        }
-                    } else if (cmd.startsWith("get")) {
-                        String[] parts = cmd.split(" ");
 
-                        if (parts.length == 2) {
-                            final String findKey = parts[1];
-                            String value = null;
-                            synchronized (CachingServer.class) {
-                                value = cache.get(findKey);
-                            }
-                            if (value == null) {
-                                outStream.write("Key not found\n".getBytes());
-                            } else {
-                                final String resp = "Key found : Value = " + value + "\n";
-                                outStream.write(resp.getBytes());
-                            }
-                        } else {
-                            badCmd = true;
-                        }
-                    }
+                    final CacheServerContext cacheServerContext = new CacheServerContext(cache, cmd, outStream);
 
-                    if (badCmd) {
+                    try {
+                        if (cmd.startsWith("put")) {
+                            ServerUtils.handlePutCommand(cacheServerContext);
+                        } else if (cmd.startsWith("get")) {
+                            ServerUtils.handleGetCommand(cacheServerContext);
+                        }
+                    } catch (IllegalArgumentException e) {
                         outStream.write("Sorry - unknown command\n".getBytes());
                     }
-
                 } while (!cmd.equals("quit"));
                 clientSocket.close();
             } catch (Exception e) {
@@ -83,7 +64,6 @@ public class CachingServer {
     public static void main(String[] args) {
         System.out.println("Starting server on " + port);
         ExecutorService executor = Executors.newFixedThreadPool(20);
-
         try {
             ServerSocket ss = new ServerSocket(port);
             while (true) {
