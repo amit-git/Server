@@ -33,9 +33,7 @@
   [task user]
   (let [tasks (:tasks app-state)
         users (:users app-state)]
-    (when (and
-            (contains? @users (:id user))
-            (contains? @tasks (:id task)))
+    (when (and (contains? @users (:id user)) (contains? @tasks (:id task)))
       (dosync
         (alter tasks assoc (:id task)
           (assoc task :assigned-to (:id user)))))))
@@ -79,7 +77,7 @@
   {:pre [(instance? Sprint sprint) (instance? Task task)]}
   (let [sprints (:sprints app-state)
         tasks (:tasks app-state)]
-    (when (contains? @sprints (:id sprint))
+    (when (and (contains? @sprints (:id sprint)) (contains? @tasks (:id task)))
       (dosync
         (alter tasks assoc (:id task)
           (assoc task :sprint-id (:id sprint)))))))
