@@ -88,9 +88,6 @@
       (reset! connections []))))
 
 (comment
-  ; simple in-memory caching server
-  ; sample input "put color=blue, red, black"
-  ; sample input "get color"
   (def app (start-server 9000))
   (stop-server app)
 
@@ -111,5 +108,4 @@
   (do
     (println "Adding")
     (+ 2 3) (println "Done"))
-
   )
